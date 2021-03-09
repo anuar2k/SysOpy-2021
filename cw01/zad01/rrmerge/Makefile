@@ -4,32 +4,34 @@ DNAME   := $(NAME).so
 CC      := gcc
 CFLAGS  := -Wall -g2
 ARFLAGS := rcs
-DIST    := /usr/local
+DIST    := /usr
 
 .PHONY: all clean install uninstall
 
 all: librrmerge.a librrmerge.so
 
 install: librrmerge.so
-	mkdir -p $(DIST)/include/rrmerge $(DIST)/lib/rrmerge
-	cp rrmerge.h $(DIST)/include/rrmerge/rrmerge.h
-	cp ptr_vector.h $(DIST)/include/rrmerge/ptr_vector.h
-	cp librrmerge.so $(DIST)/lib/rrmerge/librrmerge.so
+	mkdir -p $(DIST)/include $(DIST)/lib
+	cp rrmerge.h $(DIST)/include/rrmerge.h
+	cp rrmerge_ptr_vector.h $(DIST)/include/rrmerge_ptr_vector.h
+	cp librrmerge.so $(DIST)/lib/librrmerge.so
 
 uninstall:
-	rm -rf $(DIST)/include/rrmerge $(DIST)/lib/rrmerge
+	$(RM) $(DIST)/include/rrmerge.h 
+	$(RM) $(DIST)/include/rrmerge_ptr_vector.h
+	$(RM) $(DIST)/lib/librrmerge.so
 
-librrmerge.a: rrmerge_static.o ptr_vector_static.o
-	$(AR) $(ARFLAGS) librrmerge.a rrmerge_static.o ptr_vector_static.o
+librrmerge.a: rrmerge_static.o rrmerge_ptr_vector_static.o
+	$(AR) $(ARFLAGS) librrmerge.a rrmerge_static.o rrmerge_ptr_vector_static.o
 
 librrmerge.so:
-	$(CC) $(CFLAGS) rrmerge.c ptr_vector.c -fPIC -shared -o librrmerge.so
+	$(CC) $(CFLAGS) rrmerge.c rrmerge_ptr_vector.c -fPIC -shared -o librrmerge.so
 
 rrmerge_static.o:
 	$(CC) $(CFLAGS) rrmerge.c -c -o rrmerge_static.o
 
-ptr_vector_static.o:
-	$(CC) $(CFLAGS) ptr_vector.c -c -o ptr_vector_static.o
+rrmerge_ptr_vector_static.o:
+	$(CC) $(CFLAGS) rrmerge_ptr_vector.c -c -o rrmerge_ptr_vector_static.o
 
 clean:
 	$(RM) *.a *.o *.so
