@@ -1,6 +1,3 @@
-NAME    := librrmerge
-SNAME   := $(NAME).a
-DNAME   := $(NAME).so
 CC      := gcc
 CFLAGS  := -Wall -g2
 ARFLAGS := rcs
