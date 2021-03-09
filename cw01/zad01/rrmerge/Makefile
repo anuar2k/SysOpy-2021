@@ -6,14 +6,18 @@ CFLAGS  := -Wall -g2
 ARFLAGS := rcs
 DIST    := /usr/local
 
-.PHONY: all clean
+.PHONY: all clean install uninstall
 
 all: librrmerge.a librrmerge.so
 
 install: librrmerge.so
-	cp rrmerge.h $(DIST)/include/rrmerge.h
-	cp ptr_vector.h $(DIST)/include/ptr_vector.h
-	cp librrmerge.so $(DIST)/lib/librrmerge.so
+	mkdir -p $(DIST)/include/rrmerge $(DIST)/lib/rrmerge
+	cp rrmerge.h $(DIST)/include/rrmerge/rrmerge.h
+	cp ptr_vector.h $(DIST)/include/rrmerge/ptr_vector.h
+	cp librrmerge.so $(DIST)/lib/rrmerge/librrmerge.so
+
+uninstall:
+	rm -rf $(DIST)/include/rrmerge $(DIST)/lib/rrmerge
 
 librrmerge.a: rrmerge_static.o ptr_vector_static.o
 	$(AR) $(ARFLAGS) librrmerge.a rrmerge_static.o ptr_vector_static.o
