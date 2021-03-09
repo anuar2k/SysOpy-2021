@@ -1,4 +1,4 @@
-#include "../rrmerge/rrmerge.h"
+#include <rrmerge.h>
 
 int main() {
     ptr_vector file_pairs_vector;
