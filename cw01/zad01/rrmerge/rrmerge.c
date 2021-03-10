@@ -3,14 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 
-void free_main_vector(ptr_vector *main_vector) {
-    for (int i = main_vector->size - 1; i >= 0; i--) {
-        remove_row_block(main_vector, i);
-    }
-}
-
-size_t add_row_block(ptr_vector *main_vector, FILE *merged_file) {
-    ptr_vector *row_block = malloc(sizeof(*row_block));
+size_t add_row_block(v_v_char *main, FILE *merged_file) {
+    v_char *row_block = malloc(sizeof(*row_block));
     vec_init(row_block);
 
     char* lineptr = NULL;
@@ -22,12 +16,12 @@ size_t add_row_block(ptr_vector *main_vector, FILE *merged_file) {
     }
     free(lineptr);
 
-    vec_push_back(main_vector, row_block);
-    return main_vector->size - 1;
+    vec_push_back(main, row_block);
+    return main->size - 1;
 }
 
-void remove_row_block(ptr_vector *main_vector, size_t block_idx) {
-    ptr_vector *row_block = vec_erase(main_vector, block_idx);
+void remove_row_block(v_v_char *main, size_t block_idx) {
+    v_char *row_block = vec_erase(main, block_idx);
 
     while (row_block->size > 0) {
         free(vec_pop_back(row_block));
@@ -36,25 +30,31 @@ void remove_row_block(ptr_vector *main_vector, size_t block_idx) {
     free(row_block);
 }
 
-void remove_row(ptr_vector *main_vector, size_t block_idx, size_t row_idx) {
-    ptr_vector *row_block = main_vector->storage[block_idx];
+void remove_row(v_v_char *main, size_t block_idx, size_t row_idx) {
+    v_char *row_block = main->storage[block_idx];
 
     free(vec_erase(row_block, row_idx));
 }
 
-void add_file_pair(ptr_vector *file_pairs_vector, char *path_pair) {
+void free_main(v_v_char *main) {
+    for (int i = main->size - 1; i >= 0; i--) {
+        remove_row_block(main, i);
+    }
+}
+
+void add_file_pair(v_file_pair *file_pairs, char *path_pair) {
     file_pair *pair = malloc(sizeof(*pair));
     char *colon_ptr = strchr(path_pair, ':');
 
     pair->path_a = strndup(path_pair, colon_ptr - path_pair);
     pair->path_b = strdup(&colon_ptr[1]);
 
-    vec_push_back(file_pairs_vector, pair);
+    vec_push_back(file_pairs, pair);
 }
 
-void merge_file_pairs(ptr_vector *tmp_files_vector, ptr_vector *file_pairs_vector) {
-    for (int i = 0; i < file_pairs_vector->size; i++) {
-        file_pair *pair = file_pairs_vector->storage[i];
+void merge_file_pairs(v_FILE *tmp_files, v_file_pair *file_pairs) {
+    for (int i = 0; i < file_pairs->size; i++) {
+        file_pair *pair = file_pairs->storage[i];
         FILE *input_a = fopen(pair->path_a, "r");
         FILE *input_b = fopen(pair->path_b, "r");
         FILE *output = tmpfile();
@@ -74,7 +74,7 @@ void merge_file_pairs(ptr_vector *tmp_files_vector, ptr_vector *file_pairs_vecto
             }
 
             rewind(output);
-            vec_push_back(tmp_files_vector, output);
+            vec_push_back(tmp_files, output);
 
             free(lineptr_a);
             free(lineptr_b);
@@ -88,17 +88,17 @@ void merge_file_pairs(ptr_vector *tmp_files_vector, ptr_vector *file_pairs_vecto
     }
 }
 
-void print_file_pairs(ptr_vector *file_pairs_vector) {
-    for (int i = 0; i < file_pairs_vector->size; i++) {
-        file_pair *pair = file_pairs_vector->storage[i];
+void print_file_pairs(v_file_pair *file_pairs) {
+    for (int i = 0; i < file_pairs->size; i++) {
+        file_pair *pair = file_pairs->storage[i];
 
         printf("%s merged with %s\n", pair->path_a, pair->path_b);
     }
 }
 
-void free_file_pairs(ptr_vector *file_pairs_vector) {
-    while (file_pairs_vector->size > 0) {
-        file_pair *pair = vec_pop_back(file_pairs_vector);
+void free_file_pairs(v_file_pair *file_pairs) {
+    while (file_pairs->size > 0) {
+        file_pair *pair = vec_pop_back(file_pairs);
 
         free(pair->path_a);
         free(pair->path_b);
@@ -106,8 +106,8 @@ void free_file_pairs(ptr_vector *file_pairs_vector) {
     }
 }
 
-void free_tmp_files(ptr_vector *tmp_files_vector) {
-    while (tmp_files_vector->size > 0) {
-        fclose(vec_pop_back(tmp_files_vector));
+void free_tmp_files(v_FILE *tmp_files) {
+    while (tmp_files->size > 0) {
+        fclose(vec_pop_back(tmp_files));
     }
 }

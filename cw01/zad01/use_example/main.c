@@ -1,23 +1,23 @@
 #include <rrmerge.h>
 
 int main() {
-    ptr_vector file_pairs_vector;
-    vec_init(&file_pairs_vector);
+    v_file_pair file_pairs;
+    vec_init(&file_pairs);
 
-    add_file_pair(&file_pairs_vector, "file1.txt:file2.txt");
-    add_file_pair(&file_pairs_vector, "file3.txt:file4.txt");
-    print_file_pairs(&file_pairs_vector);
+    add_file_pair(&file_pairs, "file1.txt:file2.txt");
+    add_file_pair(&file_pairs, "file3.txt:file4.txt");
+    print_file_pairs(&file_pairs);
 
-    ptr_vector tmp_files_vector;
-    vec_init(&tmp_files_vector);
+    v_FILE tmp_files;
+    vec_init(&tmp_files);
 
-    merge_file_pairs(&tmp_files_vector, &file_pairs_vector);
-    free_file_pairs(&file_pairs_vector);
+    merge_file_pairs(&tmp_files, &file_pairs);
+    free_file_pairs(&file_pairs);
 
-    for (int i = 0; i < tmp_files_vector.size; i++) {
+    for (int i = 0; i < tmp_files.size; i++) {
         printf("File %d:\n", i);
 
-        FILE *file = tmp_files_vector.storage[i];
+        FILE *file = tmp_files.storage[i];
         int read;
         while ((read = getc(file)) != EOF) {
             putc(read, stdout);
@@ -26,28 +26,27 @@ int main() {
         rewind(file);
     }
 
-    ptr_vector main_vector;
-    vec_init(&main_vector);
+    v_v_char main;
+    vec_init(&main);
 
-    for (int i = 0; i < tmp_files_vector.size; i++) {
-        printf("Added block: %lu\n", add_row_block(&main_vector, tmp_files_vector.storage[i]));
+    for (int i = 0; i < tmp_files.size; i++) {
+        printf("Added block: %lu\n", add_row_block(&main, tmp_files.storage[i]));
     }
 
-    remove_row_block(&main_vector, 0);
-    remove_row(&main_vector, 0, 1);
-    remove_row(&main_vector, 0, 2);
+    remove_row_block(&main, 0);
+    remove_row(&main, 0, 1);
+    remove_row(&main, 0, 2);
 
-    printf("size: %lu\n", main_vector.size);
+    printf("size: %lu\n", main.size);
     
-    for (int i = 0; i < main_vector.size; i++) {
-        ptr_vector *row_block = main_vector.storage[i];
+    for (int i = 0; i < main.size; i++) {
+        v_char *row_block = main.storage[i];
         for (int j = 0; j < row_block->size; j++) {
             char *line = row_block->storage[j];
             printf("From block: %s", line);
         }
     }
 
-    free_tmp_files(&tmp_files_vector);
-    vec_clear(&tmp_files_vector);
-    free_main_vector(&main_vector);
+    free_tmp_files(&tmp_files);
+    free_main(&main);
 }
