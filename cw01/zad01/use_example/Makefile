@@ -4,10 +4,13 @@ LDLIBS := -lrrmerge
 
 .PHONY: all clean
 
-all: main
+all: main_static main_shared
 
-main:
-	$(CC) $(CFLAGS) main.c $(LDLIBS) -o main
+main_static: main.c
+	$(CC) $(CFLAGS) -static main.c -I../rrmerge -L../rrmerge $(LDLIBS) -o main_static
+
+main_shared: main.c
+	$(CC) $(CFLAGS) main.c $(LDLIBS) -o main_shared
 
 clean:
-	$(RM) main
+	$(RM) main_static main_shared

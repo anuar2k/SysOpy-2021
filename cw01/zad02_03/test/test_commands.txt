@@ -1,0 +1,162 @@
+get_ticks_per_sec
+start_measurement
+merge_files ./test/100x100.txt:./test/100x100.txt ./test/100x100.txt:./test/100x100.txt ./test/100x100.txt:./test/100x100.txt ./test/100x100.txt:./test/100x100.txt ./test/100x100.txt:./test/100x100.txt
+merge_files ./test/100x100.txt:./test/100x100.txt ./test/100x100.txt:./test/100x100.txt ./test/100x100.txt:./test/100x100.txt ./test/100x100.txt:./test/100x100.txt ./test/100x100.txt:./test/100x100.txt
+merge_files ./test/100x100.txt:./test/100x100.txt ./test/100x100.txt:./test/100x100.txt ./test/100x100.txt:./test/100x100.txt ./test/100x100.txt:./test/100x100.txt ./test/100x100.txt:./test/100x100.txt
+merge_files ./test/100x100.txt:./test/100x100.txt ./test/100x100.txt:./test/100x100.txt ./test/100x100.txt:./test/100x100.txt ./test/100x100.txt:./test/100x100.txt ./test/100x100.txt:./test/100x100.txt
+merge_files ./test/100x100.txt:./test/100x100.txt ./test/100x100.txt:./test/100x100.txt ./test/100x100.txt:./test/100x100.txt ./test/100x100.txt:./test/100x100.txt ./test/100x100.txt:./test/100x100.txt
+end_measurement
+start_measurement
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+end_measurement
+start_measurement
+merge_files ./test/100x1000.txt:./test/100x1000.txt ./test/100x1000.txt:./test/100x1000.txt ./test/100x1000.txt:./test/100x1000.txt ./test/100x1000.txt:./test/100x1000.txt ./test/100x1000.txt:./test/100x1000.txt
+merge_files ./test/100x1000.txt:./test/100x1000.txt ./test/100x1000.txt:./test/100x1000.txt ./test/100x1000.txt:./test/100x1000.txt ./test/100x1000.txt:./test/100x1000.txt ./test/100x1000.txt:./test/100x1000.txt
+merge_files ./test/100x1000.txt:./test/100x1000.txt ./test/100x1000.txt:./test/100x1000.txt ./test/100x1000.txt:./test/100x1000.txt ./test/100x1000.txt:./test/100x1000.txt ./test/100x1000.txt:./test/100x1000.txt
+merge_files ./test/100x1000.txt:./test/100x1000.txt ./test/100x1000.txt:./test/100x1000.txt ./test/100x1000.txt:./test/100x1000.txt ./test/100x1000.txt:./test/100x1000.txt ./test/100x1000.txt:./test/100x1000.txt
+merge_files ./test/100x1000.txt:./test/100x1000.txt ./test/100x1000.txt:./test/100x1000.txt ./test/100x1000.txt:./test/100x1000.txt ./test/100x1000.txt:./test/100x1000.txt ./test/100x1000.txt:./test/100x1000.txt
+end_measurement
+start_measurement
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+end_measurement
+start_measurement
+merge_files ./test/1000x100.txt:./test/1000x100.txt ./test/1000x100.txt:./test/1000x100.txt ./test/1000x100.txt:./test/1000x100.txt ./test/1000x100.txt:./test/1000x100.txt ./test/1000x100.txt:./test/1000x100.txt
+merge_files ./test/1000x100.txt:./test/1000x100.txt ./test/1000x100.txt:./test/1000x100.txt ./test/1000x100.txt:./test/1000x100.txt ./test/1000x100.txt:./test/1000x100.txt ./test/1000x100.txt:./test/1000x100.txt
+merge_files ./test/1000x100.txt:./test/1000x100.txt ./test/1000x100.txt:./test/1000x100.txt ./test/1000x100.txt:./test/1000x100.txt ./test/1000x100.txt:./test/1000x100.txt ./test/1000x100.txt:./test/1000x100.txt
+merge_files ./test/1000x100.txt:./test/1000x100.txt ./test/1000x100.txt:./test/1000x100.txt ./test/1000x100.txt:./test/1000x100.txt ./test/1000x100.txt:./test/1000x100.txt ./test/1000x100.txt:./test/1000x100.txt
+merge_files ./test/1000x100.txt:./test/1000x100.txt ./test/1000x100.txt:./test/1000x100.txt ./test/1000x100.txt:./test/1000x100.txt ./test/1000x100.txt:./test/1000x100.txt ./test/1000x100.txt:./test/1000x100.txt
+end_measurement
+start_measurement
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+end_measurement
+start_measurement
+merge_files ./test/1000x1000.txt:./test/1000x1000.txt ./test/1000x1000.txt:./test/1000x1000.txt ./test/1000x1000.txt:./test/1000x1000.txt ./test/1000x1000.txt:./test/1000x1000.txt ./test/1000x1000.txt:./test/1000x1000.txt
+merge_files ./test/1000x1000.txt:./test/1000x1000.txt ./test/1000x1000.txt:./test/1000x1000.txt ./test/1000x1000.txt:./test/1000x1000.txt ./test/1000x1000.txt:./test/1000x1000.txt ./test/1000x1000.txt:./test/1000x1000.txt
+merge_files ./test/1000x1000.txt:./test/1000x1000.txt ./test/1000x1000.txt:./test/1000x1000.txt ./test/1000x1000.txt:./test/1000x1000.txt ./test/1000x1000.txt:./test/1000x1000.txt ./test/1000x1000.txt:./test/1000x1000.txt
+merge_files ./test/1000x1000.txt:./test/1000x1000.txt ./test/1000x1000.txt:./test/1000x1000.txt ./test/1000x1000.txt:./test/1000x1000.txt ./test/1000x1000.txt:./test/1000x1000.txt ./test/1000x1000.txt:./test/1000x1000.txt
+merge_files ./test/1000x1000.txt:./test/1000x1000.txt ./test/1000x1000.txt:./test/1000x1000.txt ./test/1000x1000.txt:./test/1000x1000.txt ./test/1000x1000.txt:./test/1000x1000.txt ./test/1000x1000.txt:./test/1000x1000.txt
+end_measurement
+start_measurement
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+end_measurement
+start_measurement
+merge_files ./test/10000x10000.txt:./test/10000x10000.txt
+merge_files ./test/10000x10000.txt:./test/10000x10000.txt
+merge_files ./test/10000x10000.txt:./test/10000x10000.txt
+merge_files ./test/10000x10000.txt:./test/10000x10000.txt
+merge_files ./test/10000x10000.txt:./test/10000x10000.txt
+merge_files ./test/10000x10000.txt:./test/10000x10000.txt
+merge_files ./test/10000x10000.txt:./test/10000x10000.txt
+merge_files ./test/10000x10000.txt:./test/10000x10000.txt
+merge_files ./test/10000x10000.txt:./test/10000x10000.txt
+merge_files ./test/10000x10000.txt:./test/10000x10000.txt
+end_measurement
+start_measurement
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+remove_block 0
+end_measurement
+exit

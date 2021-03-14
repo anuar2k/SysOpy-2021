@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
-size_t add_row_block(v_v_char *main, FILE *merged_file) {
+size_t add_row_block(v_v_char *row_blocks, FILE *merged_file) {
     v_char *row_block = malloc(sizeof(*row_block));
     vec_init(row_block);
 
@@ -16,12 +16,12 @@ size_t add_row_block(v_v_char *main, FILE *merged_file) {
     }
     free(lineptr);
 
-    vec_push_back(main, row_block);
-    return main->size - 1;
+    vec_push_back(row_blocks, row_block);
+    return row_blocks->size - 1;
 }
 
-void remove_row_block(v_v_char *main, size_t block_idx) {
-    v_char *row_block = vec_erase(main, block_idx);
+void remove_row_block(v_v_char *row_blocks, size_t block_idx) {
+    v_char *row_block = vec_erase(row_blocks, block_idx);
 
     while (row_block->size > 0) {
         free(vec_pop_back(row_block));
@@ -30,15 +30,27 @@ void remove_row_block(v_v_char *main, size_t block_idx) {
     free(row_block);
 }
 
-void remove_row(v_v_char *main, size_t block_idx, size_t row_idx) {
-    v_char *row_block = main->storage[block_idx];
+void remove_row(v_v_char *row_blocks, size_t block_idx, size_t row_idx) {
+    v_char *row_block = row_blocks->storage[block_idx];
 
     free(vec_erase(row_block, row_idx));
 }
 
-void free_main(v_v_char *main) {
-    for (int i = main->size - 1; i >= 0; i--) {
-        remove_row_block(main, i);
+void print_row_blocks(v_v_char *row_blocks) {
+    for (size_t i = 0; i < row_blocks->size; i++) {
+        v_char *row_block = row_blocks->storage[i];
+        printf("row block %zu:\n", i);
+
+        for (size_t j = 0; j < row_block->size; j++) {
+            char *row = row_block->storage[j];
+            fputs(row, stdout);
+        }
+    }
+}
+
+void free_row_blocks(v_v_char *row_blocks) {
+    for (size_t i = row_blocks->size; i-- > 0;) {
+        remove_row_block(row_blocks, i);
     }
 }
 
@@ -85,14 +97,6 @@ void merge_file_pairs(v_FILE *tmp_files, v_file_pair *file_pairs) {
 
         if (input_a) fclose(input_a);
         if (input_b) fclose(input_b);
-    }
-}
-
-void print_file_pairs(v_file_pair *file_pairs) {
-    for (int i = 0; i < file_pairs->size; i++) {
-        file_pair *pair = file_pairs->storage[i];
-
-        printf("%s merged with %s\n", pair->path_a, pair->path_b);
     }
 }
 
