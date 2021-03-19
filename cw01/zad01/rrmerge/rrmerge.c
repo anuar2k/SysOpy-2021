@@ -72,24 +72,25 @@ void merge_file_pairs(v_FILE *tmp_files, v_file_pair *file_pairs) {
         FILE *output = tmpfile();
 
         if (input_a && input_b && output) {
-            char* lineptr_a = NULL;
-            char* lineptr_b = NULL;
-            size_t bufsize_a = 0;
-            size_t bufsize_b = 0;
+            char* lineptr = NULL;
+            size_t bufsize = 0;
             ssize_t read_a;
             ssize_t read_b;
 
-            while ((read_a = getline(&lineptr_a, &bufsize_a, input_a)) != -1 
-                && (read_b = getline(&lineptr_b, &bufsize_b, input_b)) != -1) {
-                fwrite(lineptr_a, sizeof(*lineptr_a), read_a, output);
-                fwrite(lineptr_b, sizeof(*lineptr_b), read_b, output);
+            do {
+                if ((read_a = getline(&lineptr, &bufsize, input_a)) != -1) {
+                    fwrite(lineptr, sizeof(*lineptr), read_a, output);
+                }
+                if ((read_a = getline(&lineptr, &bufsize, input_b)) != -1) {
+                    fwrite(lineptr, sizeof(*lineptr), read_b, output);
+                }
             }
+            while (read_a != -1 || read_b != -1);
+
+            free(lineptr);
 
             rewind(output);
             vec_push_back(tmp_files, output);
-
-            free(lineptr_a);
-            free(lineptr_b);
         }
         else {
             fclose(output);
