@@ -16,4 +16,4 @@ test: sys lib
 	/usr/bin/time -p -o lib_result.txt ./lib test/a.txt test/b.txt 1>/dev/null
 
 clean:
-	$(RM) sys lib
+	$(RM) sys lib *result.txt
