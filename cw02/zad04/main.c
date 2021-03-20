@@ -59,8 +59,8 @@ bool kmp_file_replace(char *from_path, char *to_path, char *needle, char *replac
         return false;
     }
 
-    size_t tail_len = needle_len + 1;
-    char *tail = malloc(tail_len * sizeof(*tail));
+    size_t queue_len = needle_len + 1;
+    char *queue = malloc(queue_len * sizeof(*queue));
 
     size_t head_idx = 0;
     size_t tail_idx = 0;
@@ -83,12 +83,12 @@ bool kmp_file_replace(char *from_path, char *to_path, char *needle, char *replac
 
     size_t matches = 0;
 
-    while (FILE_READ_CHARS(from, &tail[head_idx], 1) == 1) {
-        while (matches > 0 && needle[matches] != tail[head_idx]) {
+    while (FILE_READ_CHARS(from, &queue[head_idx], 1) == 1) {
+        while (matches > 0 && needle[matches] != queue[head_idx]) {
             matches = prefix_fun[matches - 1];
         }
 
-        if (needle[matches] == tail[head_idx]) {
+        if (needle[matches] == queue[head_idx]) {
             matches++;
         }
 
@@ -100,25 +100,25 @@ bool kmp_file_replace(char *from_path, char *to_path, char *needle, char *replac
             FILE_WRITE_CHARS(to, replacement, replacement_len);
         }
         else {
-            head_idx = (head_idx + 1) % tail_len;
+            head_idx = (head_idx + 1) % queue_len;
 
             size_t distance = head_idx >= tail_idx 
                             ? head_idx - tail_idx 
-                            : tail_len - tail_idx + head_idx;
+                            : queue_len - tail_idx + head_idx;
             
             if (distance == needle_len) {
-                FILE_WRITE_CHARS(to, &tail[tail_idx], 1);
-                tail_idx = (tail_idx + 1) % tail_len;
+                FILE_WRITE_CHARS(to, &queue[tail_idx], 1);
+                tail_idx = (tail_idx + 1) % queue_len;
             }
         }
     }
 
     while (tail_idx != head_idx) {
-        FILE_WRITE_CHARS(to, &tail[tail_idx], 1);
-        tail_idx = (tail_idx + 1) % tail_len;
+        FILE_WRITE_CHARS(to, &queue[tail_idx], 1);
+        tail_idx = (tail_idx + 1) % queue_len;
     }
 
-    free(tail);
+    free(queue);
     free(prefix_fun);
 
     FILE_CLOSE(from);
