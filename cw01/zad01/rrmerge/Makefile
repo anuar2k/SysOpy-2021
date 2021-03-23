@@ -25,10 +25,10 @@ librrmerge.a: rrmerge_static.o rrmerge_ptr_vector_static.o
 librrmerge.so: rrmerge.c rrmerge_ptr_vector.c
 	$(CC) $(CFLAGS) rrmerge.c rrmerge_ptr_vector.c -fPIC -shared -o librrmerge.so
 
-rrmerge_static.o: rrmerge.c
+rrmerge_static.o: rrmerge.c rrmerge.h
 	$(CC) $(CFLAGS) rrmerge.c -c -o rrmerge_static.o
 
-rrmerge_ptr_vector_static.o: rrmerge_ptr_vector.c
+rrmerge_ptr_vector_static.o: rrmerge_ptr_vector.c rrmerge_ptr_vector.h
 	$(CC) $(CFLAGS) rrmerge_ptr_vector.c -c -o rrmerge_ptr_vector_static.o
 
 clean:

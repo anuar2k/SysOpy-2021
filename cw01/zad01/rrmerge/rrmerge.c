@@ -81,7 +81,7 @@ void merge_file_pairs(v_FILE *tmp_files, v_file_pair *file_pairs) {
                 if ((read_a = getline(&lineptr, &bufsize, input_a)) != -1) {
                     fwrite(lineptr, sizeof(*lineptr), read_a, output);
                 }
-                if ((read_a = getline(&lineptr, &bufsize, input_b)) != -1) {
+                if ((read_b = getline(&lineptr, &bufsize, input_b)) != -1) {
                     fwrite(lineptr, sizeof(*lineptr), read_b, output);
                 }
             }
