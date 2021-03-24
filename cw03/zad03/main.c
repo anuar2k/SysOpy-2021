@@ -97,7 +97,7 @@ int main(int argc, char **argv) {
             char *subdir_path;
             asprintf(&subdir_path, "%s%s/", dir_path_no_dot, curr_dirent->d_name);
 
-            char new_depth_str[12];
+            char new_depth_str[20 + 1]; //ceil(log10(2^64)) + nullchar
             sprintf(new_depth_str, "%zu", depth - 1);
 
             char *newargv[] = { argv[0], subdir_path, argv[2], new_depth_str, NULL };
