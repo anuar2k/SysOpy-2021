@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <stdbool.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -41,10 +40,10 @@ int main(int argc, char **argv) {
             return EXIT_SUCCESS;
         }
     }
-
-    while (wait(NULL) > 0) {
-        //consume zombies, wait for all children to finish
-    }
+    
+    //consume zombies, wait for all children to finish
+    while (wait(NULL) > 0)
+        ;
 
     //formal calls in case these vectors were preinitialized (they are not)
     ///in fact these structures were filled with data only in child processes
