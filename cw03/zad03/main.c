@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
         if (curr_dirent->d_type == DT_REG) {
             char *dot = strrchr(curr_dirent->d_name, '.');
 
-            if (dot && strcmp(dot, ".txt") == 0) {
+            if (dot && strcmp(".txt", dot) == 0) {
                 char *file_path;
                 asprintf(&file_path, "%s%s", dir_path_no_dot, curr_dirent->d_name);
 
