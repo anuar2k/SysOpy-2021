@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
     }
 
     /**
-     * open directory through fd so we can specity O_CLOEXEC to
+     * open directory through fd so we can specify O_CLOEXEC to
      * prevent propagation of unecessary fd's into forks
      */
     int dir_fd = open(dir_path, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
@@ -120,6 +120,8 @@ int main(int argc, char **argv) {
              * 
              * btw this program is not valgrindable for depth > 0, because
              * self_executable_fd points to valgrind binary. lmao
+             * 
+             * environ is passed so PRIV_ENV_VAR can propagate with no effort
              */
             #ifdef MEMCHECK_HAPPY
             if (fork() == 0) {
