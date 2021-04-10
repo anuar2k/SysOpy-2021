@@ -19,13 +19,13 @@ bool kmp_file_contains(FILE *file, const char *needle);
 
 int main(int argc, char **argv) {
     if (argc != 4) {
-        perror("invalid argument count\n");
+        fprintf(stderr, "invalid argument count\n");
         return EXIT_FAILURE;
     }
 
     size_t depth;
     if (sscanf(argv[3], "%zu", &depth) != 1) {
-        perror("malformed depth argument\n");
+        fprintf(stderr, "malformed depth argument\n");
         return EXIT_FAILURE;
     }
 
@@ -40,7 +40,7 @@ int main(int argc, char **argv) {
     }
     else {
         if (chdir(argv[1]) == -1) {
-            fprintf(stderr, "%s: %s\n", argv[1], strerror(errno));
+            perror(argv[1]);
             return EXIT_FAILURE;
         }
         dir_path_no_dot = "";
@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
     //we'll exec ourselves recursively using fexecve, because we shouldn't rely on argv[0]
     int self_executable_fd = open("/proc/self/exe", O_RDONLY | O_CLOEXEC);
     if (self_executable_fd == -1) {
-        perror("can't replicate, wt?f\n");
+        fprintf(stderr, "can't replicate, wt?f\n");
     }
 
     /**
@@ -60,7 +60,7 @@ int main(int argc, char **argv) {
      */
     int dir_fd = open(dir_path, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
     if (dir_fd == -1) {
-        fprintf(stderr, "%s: %s\n", dir_path, strerror(errno));
+        perror(dir_path);
         return EXIT_FAILURE;
     }
 
@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
                     fclose(file);
                 }
                 else {
-                    fprintf(stderr, "%s: %s\n", file_path, strerror(errno));
+                    perror(file_path);
                 }
 
                 free(file_path);

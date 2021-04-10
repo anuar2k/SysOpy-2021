@@ -6,17 +6,17 @@
 
 int main(int argc, char **argv) {
     if (argc != 2) {
-        perror("invalid argument count\n");
+        fprintf(stderr, "invalid argument count\n");
         return EXIT_FAILURE;
     }
     
     size_t child_count;
     if (sscanf(argv[1], "%zu", &child_count) != 1) {
-        perror("malformed parameter\n");
+        fprintf(stderr, "malformed parameter\n");
         return EXIT_FAILURE;
     }
     if (child_count < 1) {
-        perror("child count must be a positive number\n");
+        fprintf(stderr, "child count must be a positive number\n");
         return EXIT_FAILURE;
     }
 
