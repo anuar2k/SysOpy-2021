@@ -21,10 +21,12 @@ int main() {
 
     sigset_t block_all;
     sigfillset(&block_all);
+    sigdelset(&block_all, SIGINT);
     sigprocmask(SIG_SETMASK, &block_all, NULL);
 
     sigset_t unblock;
     sigfillset(&unblock);
+    sigdelset(&unblock, SIGINT);
     sigdelset(&unblock, SIGUSR1);
     sigdelset(&unblock, SIGUSR2);
     sigdelset(&unblock, SIGRTMIN+0);
