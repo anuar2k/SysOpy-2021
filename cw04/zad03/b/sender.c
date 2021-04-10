@@ -5,6 +5,7 @@
 #include <string.h>
 #include <unistd.h>
 
+volatile sig_atomic_t count_sig1 = 1;
 volatile sig_atomic_t sig1_received = 0;
 volatile sig_atomic_t sig2_received = 0;
 volatile sig_atomic_t catcher_received;
@@ -19,10 +20,12 @@ int main(int argc, char **argv) {
 
     sigset_t block_all;
     sigfillset(&block_all);
+    sigdelset(&block_all, SIGINT);
     sigprocmask(SIG_SETMASK, &block_all, NULL);
 
     sigset_t unblock;
     sigfillset(&unblock);
+    sigdelset(&unblock, SIGINT);
     sigdelset(&unblock, SIGUSR1);
     sigdelset(&unblock, SIGUSR2);
     sigdelset(&unblock, SIGRTMIN+0);
@@ -46,11 +49,14 @@ int main(int argc, char **argv) {
         sigaction(SIGUSR2, &act, NULL);
 
         for (size_t i = 0; i < sig_count; i++) {
-            if (kill(catcher_pid, SIGUSR1) == -1) {
+            if (kill(catcher_pid, SIGUSR1) == -1) { //ping
                 perror(NULL);
                 return EXIT_FAILURE;
             }
+            sigsuspend(&unblock); //pong
         }
+
+        count_sig1 = 0;
 
         if (kill(catcher_pid, SIGUSR2) == -1) {
             perror(NULL);
@@ -58,7 +64,11 @@ int main(int argc, char **argv) {
         }
 
         while (!sig2_received) {
-            sigsuspend(&unblock);
+            sigsuspend(&unblock); //ping
+            if (!sig2_received && kill(catcher_pid, SIGUSR1) == -1) { //pong
+                perror(NULL);
+                return EXIT_FAILURE;
+            }
         }
 
         printf("received %d SIGUSR1 signals of %zu sent\n", sig1_received, sig_count);
@@ -68,11 +78,14 @@ int main(int argc, char **argv) {
         sigaction(SIGUSR2, &act, NULL);
 
         for (size_t i = 0; i < sig_count; i++) {
-            if (sigqueue(catcher_pid, SIGUSR1, (union sigval){ 0 }) == -1) {
+            if (sigqueue(catcher_pid, SIGUSR1, (union sigval){ 0 }) == -1) { //ping
                 perror(NULL);
                 return EXIT_FAILURE;
             }
+            sigsuspend(&unblock); //pong
         }
+
+        count_sig1 = 0;
 
         if (sigqueue(catcher_pid, SIGUSR2, (union sigval){ 0 }) == -1) {
             perror(NULL);
@@ -80,7 +93,11 @@ int main(int argc, char **argv) {
         }
 
         while (!sig2_received) {
-            sigsuspend(&unblock);
+            sigsuspend(&unblock); //ping
+            if (!sig2_received && sigqueue(catcher_pid, SIGUSR1, (union sigval){ 0 }) == -1) { //pong
+                perror(NULL);
+                return EXIT_FAILURE;
+            }
         }
 
         printf(
@@ -95,11 +112,14 @@ int main(int argc, char **argv) {
         sigaction(SIGRTMIN+1, &act, NULL);
 
         for (size_t i = 0; i < sig_count; i++) {
-            if (kill(catcher_pid, SIGRTMIN+0) == -1) {
+            if (kill(catcher_pid, SIGRTMIN+0) == -1) { //ping
                 perror(NULL);
                 return EXIT_FAILURE;
             }
+            sigsuspend(&unblock); //pong
         }
+
+        count_sig1 = 0;
 
         if (kill(catcher_pid, SIGRTMIN+1) == -1) {
             perror(NULL);
@@ -107,7 +127,11 @@ int main(int argc, char **argv) {
         }
 
         while (!sig2_received) {
-            sigsuspend(&unblock);
+            sigsuspend(&unblock); //ping
+            if (kill(catcher_pid, SIGRTMIN+0) == -1) { //pong
+                perror(NULL);
+                return EXIT_FAILURE;
+            }
         }
 
         printf("received %d SIGRTMIN+0 signals of %zu sent\n", sig1_received, sig_count);
@@ -120,7 +144,9 @@ int main(int argc, char **argv) {
 
 void sig_handler(int sig, siginfo_t *info, void *ctx) {
     if (sig == SIGUSR1 || sig == SIGRTMIN+0) {
-        sig1_received++;
+        if (count_sig1) {
+            sig1_received++;
+        }
     }
     else if (sig == SIGUSR2 || sig == SIGRTMIN+1) {
         sig2_received++;

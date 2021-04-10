@@ -9,10 +9,11 @@
 #define TYPE_SIGQUEUE 1
 #define TYPE_SIGRT 2
 
+volatile sig_atomic_t count_sig1 = 1;
 volatile sig_atomic_t sig1_received = 0;
 volatile sig_atomic_t sig2_received = 0;
 volatile sig_atomic_t sender_type;
-volatile pid_t sender_pid;
+volatile pid_t sender_pid = 0;
 
 void sig_handler(int sig, siginfo_t *info, void *ctx);
 
@@ -21,10 +22,12 @@ int main() {
 
     sigset_t block_all;
     sigfillset(&block_all);
+    sigdelset(&block_all, SIGINT);
     sigprocmask(SIG_SETMASK, &block_all, NULL);
 
     sigset_t unblock;
     sigfillset(&unblock);
+    sigdelset(&unblock, SIGINT);
     sigdelset(&unblock, SIGUSR1);
     sigdelset(&unblock, SIGUSR2);
     sigdelset(&unblock, SIGRTMIN+0);
@@ -41,16 +44,46 @@ int main() {
     sigaction(SIGRTMIN+1, &act, NULL);
 
     while (!sig2_received) {
-        sigsuspend(&unblock);
-    }
-
-    switch (sender_type) {
-        case TYPE_KILL: {
-            for (size_t i = 0; i < sig1_received; i++) {
+        sigsuspend(&unblock); //ping
+        
+        switch (sender_type) { //pong
+            case TYPE_KILL: {
                 if (kill(sender_pid, SIGUSR1) == -1) {
                     perror(NULL);
                     return EXIT_FAILURE;
                 }
+
+                break;
+            }
+            case TYPE_SIGQUEUE: {
+                if (sigqueue(sender_pid, SIGUSR1, (union sigval){ 0 }) == -1) {
+                    perror(NULL);
+                    return EXIT_FAILURE;
+                }
+
+                break;
+            }
+            case TYPE_SIGRT: {
+                if (kill(sender_pid, SIGRTMIN+0) == -1) {
+                    perror(NULL);
+                    return EXIT_FAILURE;
+                }
+
+                break;
+            }
+        }
+    }
+
+    count_sig1 = 0;
+
+    switch (sender_type) {
+        case TYPE_KILL: {
+            for (size_t i = 0; i < sig1_received; i++) {
+                if (kill(sender_pid, SIGUSR1) == -1) { //ping
+                    perror(NULL);
+                    return EXIT_FAILURE;
+                }
+                sigsuspend(&unblock); //pong
             }
 
             if (kill(sender_pid, SIGUSR2) == -1) {
@@ -63,10 +96,11 @@ int main() {
         }
         case TYPE_SIGQUEUE: {
             for (size_t i = 0; i < sig1_received; i++) {
-                if (sigqueue(sender_pid, SIGUSR1, (union sigval){ 0 }) == -1) {
+                if (sigqueue(sender_pid, SIGUSR1, (union sigval){ 0 }) == -1) { //ping
                     perror(NULL);
                     return EXIT_FAILURE;
                 }
+                sigsuspend(&unblock); //pong
             }
 
             union sigval data = {
@@ -83,10 +117,11 @@ int main() {
         }
         case TYPE_SIGRT: {
             for (size_t i = 0; i < sig1_received; i++) {
-                if (kill(sender_pid, SIGRTMIN+0) == -1) {
+                if (kill(sender_pid, SIGRTMIN+0) == -1) { //ping
                     perror(NULL);
                     return EXIT_FAILURE;
                 }
+                sigsuspend(&unblock); //pong
             }
 
             if (kill(sender_pid, SIGRTMIN+1) == -1) {
@@ -101,18 +136,22 @@ int main() {
 }
 
 void sig_handler(int sig, siginfo_t *info, void *ctx) {
-    if (sig == SIGUSR1 || sig == SIGRTMIN+0) {
-        sig1_received++;
-    }
-    else if (sig == SIGUSR2 || sig == SIGRTMIN+1) {
-        sig2_received++;
-        sender_pid = info->si_pid;
-
+    if (!sender_pid) {
         if (info->si_code == SI_USER) {
-            sender_type = sig == SIGRTMIN+1 ? TYPE_SIGRT : TYPE_KILL;
+            sender_type = sig == SIGRTMIN+0 ? TYPE_SIGRT : TYPE_KILL;
         }
         else if (info->si_code == SI_QUEUE) {
             sender_type = TYPE_SIGQUEUE;
         }
+        sender_pid = info->si_pid;
+    }
+
+    if (sig == SIGUSR1 || sig == SIGRTMIN+0) {
+        if (count_sig1) {
+            sig1_received++;
+        }
+    }
+    else if (sig == SIGUSR2 || sig == SIGRTMIN+1) {
+        sig2_received++;
     }
 }
