@@ -10,7 +10,7 @@
 
 int main(int argc, char **argv) {
     if (argc != 2) {
-        fprintf(stderr, ("invalid argument count\n");
+        fprintf(stderr, "invalid argument count\n");
         return EXIT_FAILURE;
     }
 
@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
         }
     }
     else {
-        fprintf(stderr, ("invalid argument\n");
+        fprintf(stderr, "invalid argument\n");
         return EXIT_FAILURE;
     }
 }
