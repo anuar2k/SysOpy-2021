@@ -2,11 +2,11 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
-#include <ctype.h>
 #include <stdarg.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include "ptr_vector.h"
 
@@ -47,17 +47,6 @@ int named_pipe_search_cmp(const void *key, const void *arr_el) {
     return strcmp(*key_str, (*pipe)->name);
 }
 
-void free_n(size_t n, ...) {
-    va_list ptrs;
-    va_start(ptrs, n);
-
-    while (n-- > 0) {
-        free(va_arg(ptrs, void*));
-    }
-
-    va_end(ptrs);
-}
-
 void free_v_char_content(v_char *v) {
     while (v->size > 0) {
         free(vec_pop_back(v));
@@ -77,26 +66,14 @@ void free_pipes(v_np *pipes) {
         named_pipe *pipe = vec_pop_back(pipes);
 
         free_v_v_char_content(&pipe->exec_args);
-        free_n(2, pipe->name, pipe);
+        free(pipe->name);
+        free(pipe);
     }
 }
 
-//to - exclusive
-char *copy_stripped(const char *from, const char *to) {
-    while (from < to && isspace(*from)) {
-        from++;
-    }
-    while (from < to && isspace(*(to - 1))) {
-        to--;
-    }
-
-    size_t len = to - from;
-
-    char *result = malloc((len + 1) * sizeof(*result));
-    memcpy(result, from, len * sizeof(*result));
-    result[len] = '\0';
-
-    return result;
+void term_handler(int sig) {
+    kill(0, SIGTERM);
+    _exit(EXIT_FAILURE);
 }
 
 int main(int argc, char **argv) {
@@ -113,6 +90,17 @@ int main(int argc, char **argv) {
         return result;
     }
 
+    //create a group so we can easily terminate all children in case any of them fails
+    setpgid(0, 0);
+
+    //create a handler for SIGTERM, so we can shut down all children together with parent process
+    struct sigaction act;
+    act.sa_handler = term_handler;
+    act.sa_flags = 0;
+    sigemptyset(&act.sa_mask);
+    
+    sigaction(SIGTERM, &act, NULL);
+
     v_np pipes;
     vec_init(&pipes);
 
@@ -124,32 +112,35 @@ int main(int argc, char **argv) {
     while (getline(&line, &n, input) != -1) {
         line_no++;
 
+        //definitions come before execution lines, separated with single space
         if (line[0] == '\n') {
             if (definitions) {
                 definitions = false;
+                //sort our dictionary so we can bsearch in it
                 qsort(pipes.storage, pipes.size, sizeof(*pipes.storage), named_pipe_ptr_cmp);
             }
             continue;
         }
 
         if (definitions) {
-            char *eq_char = strchr(line, '=');
+            char *pipe_def = strchr(line, '=') + 1;
+            char *before_eq = strtok(line, "=");
 
-            if (eq_char) {
+            if (before_eq) {
                 named_pipe *pipe = malloc(sizeof(*pipe));
+                pipe->name = NULL;
                 vec_init(&pipe->exec_args);
-                pipe->name = copy_stripped(line, eq_char);
-
                 vec_push_back(&pipes, pipe);
 
-                if (pipe->name[0] == '\0') {
+                char *stripped_name = strtok(before_eq, ARG_DELIM);
+                if (!stripped_name) {
                     fprintf(stderr, "line %zd: empty definition name\n", line_no);
 
                     goto cleanup;
                 }
+                pipe->name = strdup(stripped_name);
 
-                char *pipe_def = eq_char + 1;
-
+                //watch out for strtok reentrant calls
                 char *command_saveptr = NULL;
                 char *command = strtok_r(pipe_def, COMMAND_DELIM, &command_saveptr);
 
@@ -175,7 +166,7 @@ int main(int argc, char **argv) {
                         vec_push_back(args, strdup(arg));
                         arg = strtok_r(NULL, ARG_DELIM, &arg_saveptr);
                     }
-                    vec_push_back(args, NULL); //make suitable to pass to exec
+                    vec_push_back(args, NULL); //make suitable to pass to exec - must be NULL terminated
 
                     vec_push_back(&pipe->exec_args, args);
                     command = strtok_r(NULL, COMMAND_DELIM, &command_saveptr);
@@ -188,7 +179,7 @@ int main(int argc, char **argv) {
             }
         }
         else {
-            v_v_char exec_args_shallow; //we'll concat command lists, by shallow copy
+            v_v_char exec_args_shallow; //we'll concat command lists, by shallow copy of ptrs to args lists
             vec_init(&exec_args_shallow);
 
             char *name_saveptr = NULL;
@@ -234,7 +225,16 @@ int main(int argc, char **argv) {
                 name = strtok_r(NULL, COMMAND_DELIM, &name_saveptr);
             }
 
-            int stdout_inject;
+            /**
+             * merging schema (elements in parentheses are dup2'd):
+             * 
+             *  (STDOUT_of_proc_A -> fd[OUT]) -> (fd[IN] -> STDIN_of_proc_B)
+             *             ^^^^^^                          ^^^^^^
+             *              dup2                            dup2
+             * we shall iterate in backward order, to prevent pipe buffers
+             * (16 pages * 4kB/page) from clogging
+             */
+            int stdout_to_inject;
             for (ssize_t i = exec_args_shallow.size - 1; i >= 0; i--) {
                 v_char *args_vec = exec_args_shallow.storage[i];
                 char **args = (char**)args_vec->storage;
@@ -246,7 +246,7 @@ int main(int argc, char **argv) {
 
                 if (fork() == 0) {
                     if (i < exec_args_shallow.size - 1) {
-                        dup2(stdout_inject, STDOUT_FILENO);
+                        dup2(stdout_to_inject, STDOUT_FILENO);
                     }
                     if (i > 0) {
                         close(fd[OUT]);
@@ -257,17 +257,22 @@ int main(int argc, char **argv) {
                 }
 
                 if (i < exec_args_shallow.size - 1) {
-                    close(stdout_inject);
+                    close(stdout_to_inject);
                 }
                 if (i > 0) {
                     close(fd[IN]);
-                    stdout_inject = fd[OUT];
+                    stdout_to_inject = fd[OUT];
                 }
-                //should we close any files?
             }
 
-            while (wait(NULL) > 0)
-                ;
+            int wstatus;
+            while (wait(&wstatus) > 0) {
+                int exit_status;
+                if (WIFEXITED(wstatus) && (exit_status = WEXITSTATUS(wstatus)) != 0) {
+                    fprintf(stderr, "MISSION ABORT, SOME PROCESS RETURNED NONZERO CODE: %d\n", exit_status);
+                    raise(SIGTERM);
+                }
+            }
 
             vec_clear(&exec_args_shallow);
         }

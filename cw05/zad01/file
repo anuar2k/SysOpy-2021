@@ -1,5 +1,0 @@
-a = cat test
-123 = grep abc
-b = grep abc
-
-a | b | 123
