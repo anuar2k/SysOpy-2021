@@ -33,7 +33,6 @@ int main(void) {
     }
 
     mq_getattr(server_queue, &attr);
-    printf("%zu %zu %zu %zu\n", attr.mq_curmsgs, attr.mq_flags, attr.mq_maxmsg, attr.mq_msgsize);
 
     struct sigaction act;
     act.sa_handler = term_handler;
