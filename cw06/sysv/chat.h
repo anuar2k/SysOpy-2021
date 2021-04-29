@@ -12,8 +12,8 @@ typedef enum {
 
 // messages sent to the client
 typedef enum {
-    C_MSG_DISCONNECT = 1,
-    C_MSG_STOP,
+    C_MSG_STOP = 1,
+    C_MSG_DISCONNECT,
     C_MSG_CONNECT,
     C_MSG_MESSAGE,
     C_MSG_LIST,
@@ -52,8 +52,8 @@ typedef struct {
 
 // messages sent to the server
 typedef enum {
-    S_MSG_DISCONNECT = 1,
-    S_MSG_STOP,
+    S_MSG_STOP = 1,
+    S_MSG_DISCONNECT,
     S_MSG_CONNECT,
     S_MSG_LIST,
     S_MSG_INIT,

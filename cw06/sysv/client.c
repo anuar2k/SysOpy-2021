@@ -221,7 +221,13 @@ int main(void) {
                 } break;
                 case C_MSG_INIT: {
                     client_id = inc.msg.init_p.client_id;
-                    printf("assigned client id %hhd\n", client_id);
+                    if (client_id == -1) {
+                        fprintf(stderr, "server full\n");
+                        goto cleanup;
+                    }
+                    else {
+                        printf("assigned client id %hhd\n", client_id);
+                    }
                 } break;
                 default: break;
             }
