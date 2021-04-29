@@ -1,6 +1,5 @@
 #pragma once
 
-#define CHAT_PROJ_ID 69
 #define CLIENTS_MAX 20
 #define MESSAGE_MAX (100 + 1)
 #define QUEUE_NAME_MAX (30 + 1)
