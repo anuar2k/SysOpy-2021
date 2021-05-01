@@ -90,6 +90,7 @@ int main(void) {
                     char *line = NULL;
                     size_t n = 0;
                     getline(&line, &n, stdin);
+                    stdin_received = false;
 
                     if (strcmp("LIST\n", line) == 0) {
                         s_msg_buf msg_buf = {
