@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <time.h>
 #include <stdbool.h>
-#include <errno.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/ipc.h>
@@ -23,7 +22,7 @@ do {                                   \
         goto catch;                    \
     }                                  \
 }                                      \
-while (0)
+while (false)
 
 #define TRY_SLEEP(secs)           \
 do {                              \
@@ -32,7 +31,7 @@ do {                              \
         goto catch;               \
     }                             \
 }                                 \
-while (0)
+while (false)
 
 #define OVEN_CAP 5
 #define TABLE_CAP 5         
@@ -72,6 +71,7 @@ void init_signals(void);
 int rand_sleep(time_t secs);
 long long timestamp(void);
 void sig_noop(int sig);
+unsigned long mix(unsigned long a, unsigned long b, unsigned long c);
 
 int main(int argc, char **argv) {
     int result = EXIT_FAILURE;
@@ -130,7 +130,12 @@ int main(int argc, char **argv) {
 
     while (pizzaiolos-- > 0) {
         if (fork() == 0) {
-            srand(time(NULL));
+            /**
+             * time(NULL) is not sufficient for a seed, because we run multiple
+             * forks in a millisecond, mixing clock(), time(NULL) and getpid()
+             * gives good results even for processes spawned immediately
+             */
+            srand(mix(clock(), time(NULL), getpid()));
             pizzaiolo();
             return EXIT_FAILURE;
         }
@@ -138,7 +143,7 @@ int main(int argc, char **argv) {
 
     while (delivery_guys-- > 0) {
         if (fork() == 0) {
-            srand(time(NULL));
+            srand(mix(clock(), time(NULL), getpid()));
             delivery_guy();
             return EXIT_FAILURE;
         }
@@ -320,6 +325,7 @@ void init_signals(void) {
     sigaction(SIGQUIT, &act, NULL);
 }
 
+// sleeps for about [secs; secs + 1] seconds
 int rand_sleep(time_t secs) {
     struct timespec sleep_time = {
         .tv_sec = secs,
@@ -341,4 +347,19 @@ void sig_noop(int sig) {
      * we want to make blocking calls of IPC to return -1/EINTR
      * so we can clean up the semaphore array and shared memory
      */
+}
+
+// http://burtleburtle.net/bob/hash/doobs.html
+unsigned long mix(unsigned long a, unsigned long b, unsigned long c)
+{
+    a=a-b;  a=a-c;  a=a^(c >> 13);
+    b=b-c;  b=b-a;  b=b^(a << 8);
+    c=c-a;  c=c-b;  c=c^(b >> 13);
+    a=a-b;  a=a-c;  a=a^(c >> 12);
+    b=b-c;  b=b-a;  b=b^(a << 16);
+    c=c-a;  c=c-b;  c=c^(b >> 5);
+    a=a-b;  a=a-c;  a=a^(c >> 3);
+    b=b-c;  b=b-a;  b=b^(a << 10);
+    c=c-a;  c=c-b;  c=c^(b >> 15);
+    return c;
 }
