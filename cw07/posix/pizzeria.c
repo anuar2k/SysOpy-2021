@@ -5,24 +5,29 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <sys/ipc.h>
-#include <sys/sem.h>
-#include <sys/shm.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 #include <sys/time.h>
+#include <semaphore.h>
+#include <fcntl.h>
 #include <unistd.h>
 
-#define TRY_SEM(sem, op)               \
-do {                                   \
-    struct sembuf sop = {              \
-        .sem_num = sem,                \
-        .sem_op = op,                  \
-        .sem_flg = SEM_UNDO            \
-    };                                 \
-    if (semop(semid, &sop, 1) == -1) { \
-        perror("sem " #sem " " #op);   \
-        goto catch;                    \
-    }                                  \
-}                                      \
+#define TRY_POST(sem_ptr)                \
+do {                                     \
+    if (sem_post(sem_ptr) == -1) {       \
+        perror("sem " #sem_ptr " post"); \
+        goto catch;                      \
+    }                                    \
+}                                        \
+while (false)
+
+#define TRY_WAIT(sem_ptr)                \
+do {                                     \
+    if (sem_wait(sem_ptr) == -1) {       \
+        perror("sem " #sem_ptr " wait"); \
+        goto catch;                      \
+    }                                    \
+}                                        \
 while (false)
 
 #define TRY_SLEEP(secs)           \
@@ -35,35 +40,22 @@ do {                              \
 while (false)
 
 #define OVEN_CAP 5
-#define TABLE_CAP 5         
-
-union semun {
-    int              val;
-    struct semid_ds *buf;
-    unsigned short  *array;
-    struct seminfo  *__buf;
-};
+#define TABLE_CAP 5
 
 typedef short pizza;
-
-typedef enum {
-    OVEN_DOOR,
-    OVEN_FREE,
-    TABLE_DOOR,
-    TABLE_IN_FREE,
-    TABLE_OUT_AVAIL,
-    pizzeria_sem_len
-} pizzeria_sem;
 
 typedef struct {
     pizza oven[OVEN_CAP];
     size_t in_oven;
     pizza table[TABLE_CAP];
     size_t on_table;
+    sem_t oven_door;
+    sem_t oven_free;
+    sem_t table_door;
+    sem_t table_in_free;
+    sem_t table_out_avail;
 } pizzeria_shm;
 
-int semid = -1;
-int shmid = -1;
 pizzeria_shm *pizzeria = (pizzeria_shm *) -1;
 
 void pizzaiolo(void);
@@ -95,29 +87,11 @@ int main(int argc, char **argv) {
         return result;
     }
 
-    semid = semget(IPC_PRIVATE, pizzeria_sem_len, 0666);
-    if (semid == -1) {
-        perror("semget");
-        goto cleanup;
-    }
-
-    shmid = shmget(IPC_PRIVATE, sizeof(*pizzeria), 0666);
-    if (shmid == -1) {
-        perror("shmget");
-        goto cleanup;
-    }
-
-    pizzeria = shmat(shmid, NULL, 0);
+    pizzeria = mmap(NULL, sizeof(*pizzeria), PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, -1, 0);
     if (pizzeria == (pizzeria_shm *) -1) {
         perror("shmat");
         goto cleanup;
     }
-
-    semctl(semid, OVEN_DOOR,       SETVAL, (union semun){ .val = 1         });
-    semctl(semid, OVEN_FREE,       SETVAL, (union semun){ .val = OVEN_CAP  });
-    semctl(semid, TABLE_DOOR,      SETVAL, (union semun){ .val = 1         });
-    semctl(semid, TABLE_IN_FREE,   SETVAL, (union semun){ .val = TABLE_CAP });
-    semctl(semid, TABLE_OUT_AVAIL, SETVAL, (union semun){ .val = 0         });
 
     for (size_t i = 0; i < OVEN_CAP; i++) {
         pizzeria->oven[i] = -1;
@@ -126,6 +100,12 @@ int main(int argc, char **argv) {
     for (size_t i = 0; i < TABLE_CAP; i++) {
         pizzeria->table[i] = -1;
     }
+
+    sem_init(&pizzeria->oven_door,       true, 1);
+    sem_init(&pizzeria->oven_free,       true, OVEN_CAP);
+    sem_init(&pizzeria->table_door,      true, 1);
+    sem_init(&pizzeria->table_in_free,   true, TABLE_CAP);
+    sem_init(&pizzeria->table_out_avail, true, 0);
 
     init_signals();
 
@@ -158,13 +138,12 @@ int main(int argc, char **argv) {
 
     cleanup:
     if (pizzeria != (pizzeria_shm *) -1) {
-        shmdt(pizzeria);
-    }
-    if (shmid != -1) {
-        shmctl(shmid, IPC_RMID, NULL);
-    }
-    if (semid != -1) {
-        semctl(semid, -1, IPC_RMID);
+        sem_destroy(&pizzeria->oven_door);
+        sem_destroy(&pizzeria->oven_free);
+        sem_destroy(&pizzeria->table_door);
+        sem_destroy(&pizzeria->table_in_free);
+        sem_destroy(&pizzeria->table_out_avail);
+        munmap(pizzeria, sizeof(*pizzeria));
     }
 
     return result;
@@ -177,8 +156,8 @@ void pizzaiolo(void) {
         printf("(%d %lld) przygotowuje pizze: %hd\n", getpid(), timestamp(), to_prepare);
 
         TRY_SLEEP(1);
-        TRY_SEM(OVEN_FREE, -1);
-        TRY_SEM(OVEN_DOOR, -1);
+        TRY_WAIT(&pizzeria->oven_free);
+        TRY_WAIT(&pizzeria->oven_door);
 
         ssize_t free_spot = -1;
         for (size_t i = 0; i < OVEN_CAP; i++) {
@@ -204,9 +183,9 @@ void pizzaiolo(void) {
             pizzeria->in_oven
         );
 
-        TRY_SEM(OVEN_DOOR, 1);
+        TRY_POST(&pizzeria->oven_door);
         TRY_SLEEP(4);
-        TRY_SEM(OVEN_DOOR, -1);
+        TRY_WAIT(&pizzeria->oven_door);
 
         pizza removed = pizzeria->oven[free_spot];
         pizzeria->oven[free_spot] = -1;
@@ -225,10 +204,10 @@ void pizzaiolo(void) {
             pizzeria->in_oven
         );
 
-        TRY_SEM(OVEN_DOOR, 1);
-        TRY_SEM(OVEN_FREE, 1);
-        TRY_SEM(TABLE_IN_FREE, -1);
-        TRY_SEM(TABLE_DOOR, -1);
+        TRY_POST(&pizzeria->oven_door);
+        TRY_POST(&pizzeria->oven_free);
+        TRY_WAIT(&pizzeria->table_in_free);
+        TRY_WAIT(&pizzeria->table_door);
 
         free_spot = -1;
         for (size_t i = 0; i < TABLE_CAP; i++) {
@@ -254,18 +233,18 @@ void pizzaiolo(void) {
             pizzeria->on_table
         );
 
-        TRY_SEM(TABLE_OUT_AVAIL, 1);
-        TRY_SEM(TABLE_DOOR, 1);
+        TRY_POST(&pizzeria->table_out_avail);
+        TRY_POST(&pizzeria->table_door);
     }
 
     catch:
-    shmdt(pizzeria);
+    munmap(pizzeria, sizeof(*pizzeria));
 }
 
 void delivery_guy(void) {
     while (true) {
-        TRY_SEM(TABLE_OUT_AVAIL, -1);
-        TRY_SEM(TABLE_DOOR, -1);
+        TRY_WAIT(&pizzeria->table_out_avail);
+        TRY_WAIT(&pizzeria->table_door);
 
         ssize_t busy_slot = -1;
         for (size_t i = 0; i < TABLE_CAP; i++) {
@@ -292,8 +271,8 @@ void delivery_guy(void) {
             pizzeria->on_table
         );
 
-        TRY_SEM(TABLE_IN_FREE, 1);
-        TRY_SEM(TABLE_DOOR, 1);
+        TRY_POST(&pizzeria->table_in_free);
+        TRY_POST(&pizzeria->table_door);
         TRY_SLEEP(4);
 
         printf(
@@ -307,7 +286,7 @@ void delivery_guy(void) {
     }
 
     catch:
-    shmdt(pizzeria);
+    munmap(pizzeria, sizeof(*pizzeria));
 }
 
 void init_signals(void) {
