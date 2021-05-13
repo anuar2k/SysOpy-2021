@@ -41,14 +41,13 @@ typedef struct {
     bitmap *out_bitmap;
 } numbers_args;
 
-struct tms tms_ignore;
-
 bool parse_in(FILE *in, bitmap *in_bitmap);
 bool write_out(FILE *out, bitmap *out_bitmap);
 bool process_bitmap(bool block, size_t thread_count, bitmap *in_bitmap, bitmap *out_bitmap);
 void *block_worker(void *args);
 void *numbers_worker(void *args);
 char *read_in(FILE *in);
+long extract_nanos(struct timespec *stamp);
 
 int main(int argc, char **argv) {
     int result = EXIT_FAILURE;
@@ -67,8 +66,8 @@ int main(int argc, char **argv) {
     }
 
     size_t thread_count;
-    if (sscanf(argv[1], "%zu", &thread_count) != 1) {
-        perror(S(thread_count));
+    if (sscanf(argv[1], "%zu", &thread_count) != 1 || thread_count < 1) {
+        fprintf(stderr, "invalid thread count\n");
         goto cleanup;
     }
 
@@ -100,21 +99,25 @@ int main(int argc, char **argv) {
         goto cleanup;
     }
 
-    clock_t start_time = times(&tms_ignore);
+    struct timespec start_time;
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
 
     if (!process_bitmap(block, thread_count, &in_bitmap, &out_bitmap)) {
         fprintf(stderr, S(process_bitmap) " fail\n");
         goto cleanup;
     }
 
-    clock_t result_time = times(&tms_ignore) - start_time;
+    struct timespec end_time;
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+
+    float result_time = (extract_nanos(&end_time) - extract_nanos(&start_time)) / 1e9;
 
     if (!write_out(out, &out_bitmap)) {
         fprintf(stderr, S(write_out) " fail\n");
         goto cleanup;
     }
 
-    printf("CLOCKS_PER_SEC: %ld, result time: %ld\n", CLOCKS_PER_SEC, result_time);
+    printf("CLOCKS_PER_SEC: %ld, result time: %f\n", CLOCKS_PER_SEC, result_time);
 
     result = EXIT_SUCCESS;
 
@@ -144,7 +147,7 @@ bool parse_in(FILE *in, bitmap *in_bitmap) {
     if (in_bitmap->w < 1) goto cleanup;
 
     curr = strtok(NULL, WHITESPACE_DELIM);
-    if (!curr || sscanf(curr, "%hhd", &in_bitmap->max_pixel_val) != 1) goto cleanup;
+    if (!curr || sscanf(curr, "%hhu", &in_bitmap->max_pixel_val) != 1) goto cleanup;
     if (in_bitmap->max_pixel_val < 1) goto cleanup;
 
     size_t pixel_count = in_bitmap->w * in_bitmap->h;
@@ -163,12 +166,12 @@ bool parse_in(FILE *in, bitmap *in_bitmap) {
 }
 
 bool write_out(FILE *out, bitmap *out_bitmap) {
-    fprintf(out, PGM_MAGIC "\n%zu %zu\n%hhd\n", out_bitmap->w, out_bitmap->h, out_bitmap->max_pixel_val);
+    fprintf(out, PGM_MAGIC "\n%zu %zu\n%hhu\n", out_bitmap->w, out_bitmap->h, out_bitmap->max_pixel_val);
 
     size_t i = 0;
     for (size_t h = 0; h < out_bitmap->h; h++) {
         for (size_t w = 0; w < out_bitmap->w; w++) {
-            fprintf(out, w == 0 ? "%hhd" : " %hhd", out_bitmap->data[i++]);
+            fprintf(out, w == 0 ? "%hhu" : " %hhu", out_bitmap->data[i++]);
         }
         fputc('\n', out);
     }
@@ -301,4 +304,8 @@ char *read_in(FILE *in) {
     }
 
     return content;
+}
+
+long extract_nanos(struct timespec *stamp) {
+    return stamp->tv_sec * 1000000000 + stamp->tv_nsec;
 }
