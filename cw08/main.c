@@ -5,22 +5,49 @@
 #include <stdint.h>
 #include <time.h>
 #include <sys/times.h>
+#include <pthread.h>
+#include <signal.h>
 
 #define S(x) #x
+#define CEIL_DIV(a, b)     \
+({                         \
+    typeof(a) _a = (a);    \
+    typeof(b) _b = (b);    \
+    _a / _b + !!(_a % _b); \
+})
+
+//see man isspace
+#define WHITESPACE_DELIM " \f\n\r\t\v"
+#define PGM_MAGIC "P2"
 
 typedef struct {
     size_t w;
     size_t h;
+    uint8_t max_pixel_val;
     uint8_t *data;
 } bitmap;
 
-const char *WHITESPACE_DELIM = " \f\n\r\t\v"; //see man isspace
+typedef struct {
+    size_t pixel_from;
+    size_t pixel_to;
+    bitmap *in_bitmap;
+    bitmap *out_bitmap;
+} block_args;
+
+typedef struct {
+    uint8_t color_from;
+    uint8_t color_to;
+    bitmap *in_bitmap;
+    bitmap *out_bitmap;
+} numbers_args;
+
 struct tms tms_ignore;
 
 bool parse_in(FILE *in, bitmap *in_bitmap);
 bool write_out(FILE *out, bitmap *out_bitmap);
-bool process_block(size_t thread_count, bitmap *in_bitmap, bitmap *out_bitmap);
-bool process_numbers(size_t thread_count, bitmap *in_bitmap, bitmap *out_bitmap);
+bool process_bitmap(bool block, size_t thread_count, bitmap *in_bitmap, bitmap *out_bitmap);
+void *block_worker(void *args);
+void *numbers_worker(void *args);
 char *read_in(FILE *in);
 
 int main(int argc, char **argv) {
@@ -75,17 +102,9 @@ int main(int argc, char **argv) {
 
     clock_t start_time = times(&tms_ignore);
 
-    if (block) {
-        if (!process_block(thread_count, &in_bitmap, &out_bitmap)) {
-            fprintf(stderr, S(process_block) " fail\n");
-            goto cleanup;
-        }
-    }
-    else {
-        if (!process_numbers(thread_count, &in_bitmap, &out_bitmap)) {
-            fprintf(stderr, S(process_numbers) " fail\n");
-            goto cleanup;
-        }
+    if (!process_bitmap(block, thread_count, &in_bitmap, &out_bitmap)) {
+        fprintf(stderr, S(process_bitmap) " fail\n");
+        goto cleanup;
     }
 
     clock_t result_time = times(&tms_ignore) - start_time;
@@ -114,7 +133,7 @@ bool parse_in(FILE *in, bitmap *in_bitmap) {
     char *content = read_in(in);
 
     char *curr = strtok(content, WHITESPACE_DELIM);
-    if (!curr || strcmp("P2", curr) != 0) goto cleanup;
+    if (!curr || strcmp(PGM_MAGIC, curr) != 0) goto cleanup;
 
     curr = strtok(NULL, WHITESPACE_DELIM);
     if (!curr || sscanf(curr, "%zu", &in_bitmap->w) != 1) goto cleanup;
@@ -124,10 +143,9 @@ bool parse_in(FILE *in, bitmap *in_bitmap) {
     if (!curr || sscanf(curr, "%zu", &in_bitmap->h) != 1) goto cleanup;
     if (in_bitmap->w < 1) goto cleanup;
 
-    size_t max_val;
     curr = strtok(NULL, WHITESPACE_DELIM);
-    if (!curr || sscanf(curr, "%zu", &max_val) != 1) goto cleanup;
-    if (max_val != 255) goto cleanup;
+    if (!curr || sscanf(curr, "%hhd", &in_bitmap->max_pixel_val) != 1) goto cleanup;
+    if (in_bitmap->max_pixel_val < 1) goto cleanup;
 
     size_t pixel_count = in_bitmap->w * in_bitmap->h;
     in_bitmap->data = malloc(pixel_count * sizeof(*in_bitmap->data));
@@ -145,7 +163,7 @@ bool parse_in(FILE *in, bitmap *in_bitmap) {
 }
 
 bool write_out(FILE *out, bitmap *out_bitmap) {
-    fprintf(out, "P2\n%zu %zu\n255\n", out_bitmap->w, out_bitmap->h);
+    fprintf(out, PGM_MAGIC "\n%zu %zu\n%hhd\n", out_bitmap->w, out_bitmap->h, out_bitmap->max_pixel_val);
 
     size_t i = 0;
     for (size_t h = 0; h < out_bitmap->h; h++) {
@@ -158,26 +176,106 @@ bool write_out(FILE *out, bitmap *out_bitmap) {
     return true;
 }
 
-bool process_block(size_t thread_count, bitmap *in_bitmap, bitmap *out_bitmap) {
+bool process_bitmap(bool block, size_t thread_count, bitmap *in_bitmap, bitmap *out_bitmap) {
+    bool result = false;
+
     out_bitmap->w = in_bitmap->w;
     out_bitmap->h = in_bitmap->h;
+    out_bitmap->max_pixel_val = in_bitmap->max_pixel_val;
 
     size_t pixel_count = out_bitmap->w * out_bitmap->h;
     out_bitmap->data = malloc(pixel_count * sizeof(*out_bitmap->data));
-    memcpy(out_bitmap->data, in_bitmap->data, pixel_count * sizeof(*out_bitmap->data));
 
-    return true;
+    pthread_t invalid_thread = pthread_self();
+    pthread_t *workers = malloc(thread_count * sizeof(*workers));
+
+    for (size_t i = 0; i < thread_count; i++) {
+        workers[i] = invalid_thread;
+    }
+
+    void *worker_args;
+    if (block) {
+        block_args *block_args = malloc(thread_count * sizeof(*block_args));
+        worker_args = block_args;
+
+        for (size_t i = 0; i < thread_count; i++) {
+            block_args[i].pixel_from = CEIL_DIV(i * pixel_count, thread_count);
+            block_args[i].pixel_to = CEIL_DIV((i + 1) * pixel_count, thread_count) - 1;
+            block_args[i].in_bitmap = in_bitmap;
+            block_args[i].out_bitmap = out_bitmap;
+
+            if (pthread_create(&workers[i], NULL, block_worker, &block_args[i]) != 0) {
+                workers[i] = invalid_thread;
+                goto cleanup;
+            }
+        }
+    }
+    else {
+        numbers_args *numbers_args = malloc(thread_count * sizeof(*numbers_args));
+        worker_args = numbers_args;
+
+        for (size_t i = 0; i < thread_count; i++) {
+            numbers_args[i].color_from = CEIL_DIV(i * (in_bitmap->max_pixel_val + 1), thread_count);
+            numbers_args[i].color_to = CEIL_DIV((i + 1) * (in_bitmap->max_pixel_val + 1), thread_count) - 1;
+            numbers_args[i].in_bitmap = in_bitmap;
+            numbers_args[i].out_bitmap = out_bitmap;
+
+            if (pthread_create(&workers[i], NULL, numbers_worker, &numbers_args[i]) != 0) {
+                workers[i] = invalid_thread;
+                goto cleanup;
+            }
+        }
+    }
+
+    for (size_t i = 0; i < thread_count; i++) {
+        void *retval_ignore;
+
+        if (pthread_join(workers[i], &retval_ignore) != 0) {
+            goto cleanup;
+        }
+        workers[i] = invalid_thread;
+    }
+
+    result = true;
+
+    cleanup:
+    for (size_t i = 0; i < thread_count; i++) {
+        if (!pthread_equal(invalid_thread, workers[i])) {
+            pthread_kill(workers[i], SIGKILL);
+        }
+    }
+
+    free(workers);
+    free(worker_args);
+    return result;
 }
 
-bool process_numbers(size_t thread_count, bitmap *in_bitmap, bitmap *out_bitmap) {
-    out_bitmap->w = in_bitmap->w;
-    out_bitmap->h = in_bitmap->h;
+void *block_worker(void *args) {
+    block_args *block_args = args;
+    bitmap *in_bitmap = block_args->in_bitmap;
+    bitmap *out_bitmap = block_args->out_bitmap;
 
-    size_t pixel_count = out_bitmap->w * out_bitmap->h;
-    out_bitmap->data = malloc(pixel_count * sizeof(*out_bitmap->data));
-    memcpy(out_bitmap->data, in_bitmap->data, pixel_count * sizeof(*out_bitmap->data));
-    
-    return true;
+    for (size_t i = block_args->pixel_from; i <= block_args->pixel_to; i++) {
+        out_bitmap->data[i] = in_bitmap->max_pixel_val - in_bitmap->data[i];
+    }
+
+    return NULL;
+}
+
+void *numbers_worker(void *args) {
+    numbers_args *numbers_args = args;
+    bitmap *in_bitmap = numbers_args->in_bitmap;
+    bitmap *out_bitmap = numbers_args->out_bitmap;
+
+    size_t pixel_count = in_bitmap->w * in_bitmap->h;
+
+    for (size_t i = 0; i < pixel_count; i++) {
+        if (in_bitmap->data[i] >= numbers_args->color_from && in_bitmap->data[i] <= numbers_args->color_to) { //if body
+            out_bitmap->data[i] = in_bitmap->max_pixel_val - in_bitmap->data[i]; //new_value
+        }
+    }
+
+    return NULL;
 }
 
 char *read_in(FILE *in) {
