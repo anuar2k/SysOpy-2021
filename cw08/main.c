@@ -231,9 +231,7 @@ bool process_bitmap(bool block, size_t thread_count, bitmap *in_bitmap, bitmap *
     }
 
     for (size_t i = 0; i < thread_count; i++) {
-        void *retval_ignore;
-
-        if (pthread_join(workers[i], &retval_ignore) != 0) {
+        if (pthread_join(workers[i], NULL) != 0) {
             goto cleanup;
         }
         workers[i] = invalid_thread;
@@ -244,7 +242,13 @@ bool process_bitmap(bool block, size_t thread_count, bitmap *in_bitmap, bitmap *
     cleanup:
     for (size_t i = 0; i < thread_count; i++) {
         if (!pthread_equal(invalid_thread, workers[i])) {
-            pthread_kill(workers[i], SIGKILL);
+            pthread_cancel(workers[i]);
+        }
+    }
+
+    for (size_t i = 0; i < thread_count; i++) {
+        if (!pthread_equal(invalid_thread, workers[i])) {
+            pthread_join(workers[i], NULL);
         }
     }
 
@@ -254,6 +258,8 @@ bool process_bitmap(bool block, size_t thread_count, bitmap *in_bitmap, bitmap *
 }
 
 void *block_worker(void *args) {
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+
     block_args *block_args = args;
     bitmap *in_bitmap = block_args->in_bitmap;
     bitmap *out_bitmap = block_args->out_bitmap;
@@ -266,6 +272,8 @@ void *block_worker(void *args) {
 }
 
 void *numbers_worker(void *args) {
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+
     numbers_args *numbers_args = args;
     bitmap *in_bitmap = numbers_args->in_bitmap;
     bitmap *out_bitmap = numbers_args->out_bitmap;
@@ -273,8 +281,8 @@ void *numbers_worker(void *args) {
     size_t pixel_count = in_bitmap->w * in_bitmap->h;
 
     for (size_t i = 0; i < pixel_count; i++) {
-        if (in_bitmap->data[i] >= numbers_args->color_from && in_bitmap->data[i] <= numbers_args->color_to) { //if body
-            out_bitmap->data[i] = in_bitmap->max_pixel_val - in_bitmap->data[i]; //new_value
+        if (in_bitmap->data[i] >= numbers_args->color_from && in_bitmap->data[i] <= numbers_args->color_to) {
+            out_bitmap->data[i] = in_bitmap->max_pixel_val - in_bitmap->data[i];
         }
     }
 
