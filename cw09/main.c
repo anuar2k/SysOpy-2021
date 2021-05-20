@@ -131,6 +131,7 @@ void *reindeer(void *id) {
         lock (&santa_warehouse_mut) {
             pthread_cleanup_push(mutex_cleanup_routine, &santa_warehouse_mut);
 
+            //wait until reindeers are dealt with
             while (idle_reindeers > 0) {
                 pthread_cond_wait(&santa_warehouse_cond, &santa_warehouse_mut);
             }
@@ -163,11 +164,45 @@ void *reindeer(void *id) {
 void *elf(void *id) {
     size_t worker_id = (size_t)id;
 
-    return NULL;
+    size_t last_spot = ELVES_TRIGGER + 1;
 
     while (true) {
         lock (&santa_warehouse_mut) {
             pthread_cleanup_push(mutex_cleanup_routine, &santa_warehouse_mut);
+
+            //wait until Santa Claus is done dealing with me
+            while (last_spot < stuck_elves && stuck_elves_ids[last_spot] == worker_id) {
+                pthread_cond_wait(&santa_warehouse_cond, &santa_warehouse_mut);
+            }
+
+            pthread_cleanup_pop(false);
+        }
+
+        printf("Elf: pracuję, %zu\n", worker_id);
+        rand_sleep(2);
+
+        lock (&santa_warehouse_mut) {
+            pthread_cleanup_push(mutex_cleanup_routine, &santa_warehouse_mut);
+
+            //try to find a spot in stuck_elves_ids
+            bool first_try = true;
+            while (stuck_elves == ELVES_TRIGGER) {
+                if (first_try) {
+                    printf("Elf: czeka na powrót elfów, %zu\n", worker_id);
+                    first_try = false;
+                }
+
+                pthread_cond_wait(&santa_warehouse_cond, &santa_warehouse_mut);
+            }
+
+            last_spot = stuck_elves;
+            stuck_elves_ids[stuck_elves++] = worker_id;
+            printf("Elf: czeka %zu elfów na Mikołaja, %zu\n", stuck_elves, worker_id);
+
+            if (stuck_elves == ELVES_TRIGGER) {
+                pthread_cond_broadcast(&santa_warehouse_cond);
+            }
+
             pthread_cleanup_pop(false);
         }
     }
