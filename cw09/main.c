@@ -20,8 +20,8 @@ pthread_mutex_t rand_mut = PTHREAD_MUTEX_INITIALIZER;
 
 pthread_mutex_t santa_warehouse_mut = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t santa_wakeup_cond = PTHREAD_COND_INITIALIZER;
-pthread_cond_t elves_wakeup_cond = PTHREAD_COND_INITIALIZER;
 pthread_cond_t reindeers_wakeup_cond = PTHREAD_COND_INITIALIZER;
+pthread_cond_t elves_wakeup_cond = PTHREAD_COND_INITIALIZER;
 
 size_t idle_reindeers = 0;
 size_t stuck_elves = 0;
