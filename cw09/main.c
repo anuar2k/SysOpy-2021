@@ -19,7 +19,10 @@ for (bool _iter = true;                            \
 pthread_mutex_t rand_mut = PTHREAD_MUTEX_INITIALIZER;
 
 pthread_mutex_t santa_warehouse_mut = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t santa_warehouse_cond = PTHREAD_COND_INITIALIZER;
+pthread_cond_t santa_wakeup_cond = PTHREAD_COND_INITIALIZER;
+pthread_cond_t elves_wakeup_cond = PTHREAD_COND_INITIALIZER;
+pthread_cond_t reindeers_wakeup_cond = PTHREAD_COND_INITIALIZER;
+
 size_t idle_reindeers = 0;
 size_t stuck_elves = 0;
 size_t stuck_elves_ids[ELVES_TRIGGER];
@@ -90,7 +93,7 @@ void *santa_claus(void *id) {
             pthread_cleanup_push(mutex_cleanup_routine, &santa_warehouse_mut);
 
             while (idle_reindeers != REINDEERS && stuck_elves != ELVES_TRIGGER) {
-                pthread_cond_wait(&santa_warehouse_cond, &santa_warehouse_mut);
+                pthread_cond_wait(&santa_wakeup_cond, &santa_warehouse_mut);
             }
 
             printf("Mikołaj: budzę się\n");
@@ -102,7 +105,7 @@ void *santa_claus(void *id) {
 
                 idle_reindeers = 0;
                 shipped_gifts++;
-                pthread_cond_broadcast(&santa_warehouse_cond);
+                pthread_cond_broadcast(&reindeers_wakeup_cond);
             }
             else {
                 printf(
@@ -114,7 +117,7 @@ void *santa_claus(void *id) {
                 rand_sleep(2);
 
                 stuck_elves = 0;
-                pthread_cond_broadcast(&santa_warehouse_cond);
+                pthread_cond_broadcast(&elves_wakeup_cond);
             }
 
             pthread_cleanup_pop(false);
@@ -133,7 +136,7 @@ void *reindeer(void *id) {
 
             //wait until reindeers are dealt with
             while (idle_reindeers > 0) {
-                pthread_cond_wait(&santa_warehouse_cond, &santa_warehouse_mut);
+                pthread_cond_wait(&reindeers_wakeup_cond, &santa_warehouse_mut);
             }
 
             pthread_cleanup_pop(false);
@@ -151,7 +154,7 @@ void *reindeer(void *id) {
             printf("Renifer: czeka %zu reniferów na Mikołaja, %zu\n", idle_reindeers, worker_id);
 
             if (idle_reindeers == REINDEERS) {
-                pthread_cond_broadcast(&santa_warehouse_cond);
+                pthread_cond_signal(&santa_wakeup_cond);
             }
 
             pthread_cleanup_pop(false);
@@ -172,7 +175,7 @@ void *elf(void *id) {
 
             //wait until Santa Claus is done dealing with me
             while (last_spot < stuck_elves && stuck_elves_ids[last_spot] == worker_id) {
-                pthread_cond_wait(&santa_warehouse_cond, &santa_warehouse_mut);
+                pthread_cond_wait(&elves_wakeup_cond, &santa_warehouse_mut);
             }
 
             pthread_cleanup_pop(false);
@@ -192,7 +195,7 @@ void *elf(void *id) {
                     first_try = false;
                 }
 
-                pthread_cond_wait(&santa_warehouse_cond, &santa_warehouse_mut);
+                pthread_cond_wait(&elves_wakeup_cond, &santa_warehouse_mut);
             }
 
             last_spot = stuck_elves;
@@ -200,7 +203,7 @@ void *elf(void *id) {
             printf("Elf: czeka %zu elfów na Mikołaja, %zu\n", stuck_elves, worker_id);
 
             if (stuck_elves == ELVES_TRIGGER) {
-                pthread_cond_broadcast(&santa_warehouse_cond);
+                pthread_cond_signal(&santa_wakeup_cond);
             }
 
             pthread_cleanup_pop(false);
