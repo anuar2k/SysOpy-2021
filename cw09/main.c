@@ -27,7 +27,7 @@ size_t idle_reindeers = 0;
 size_t stuck_elves = 0;
 size_t stuck_elves_ids[ELVES_TRIGGER];
 
-void mutex_cleanup_routine(void *arg);
+void mutex_unlock_routine(void *arg);
 int rand_sleep(time_t secs);
 
 void *santa_claus(void *id);
@@ -90,7 +90,7 @@ void *santa_claus(void *id) {
 
     while (shipped_gifts < SANTA_SHIPPED_MAX) {
         lock (&santa_warehouse_mut) {
-            pthread_cleanup_push(mutex_cleanup_routine, &santa_warehouse_mut);
+            pthread_cleanup_push(mutex_unlock_routine, &santa_warehouse_mut);
 
             while (idle_reindeers != REINDEERS && stuck_elves != ELVES_TRIGGER) {
                 pthread_cond_wait(&santa_wakeup_cond, &santa_warehouse_mut);
@@ -132,7 +132,7 @@ void *reindeer(void *id) {
 
     while (true) {
         lock (&santa_warehouse_mut) {
-            pthread_cleanup_push(mutex_cleanup_routine, &santa_warehouse_mut);
+            pthread_cleanup_push(mutex_unlock_routine, &santa_warehouse_mut);
 
             //wait until reindeers are dealt with
             while (idle_reindeers > 0) {
@@ -148,7 +148,7 @@ void *reindeer(void *id) {
         rand_sleep(5);
 
         lock (&santa_warehouse_mut) {
-            pthread_cleanup_push(mutex_cleanup_routine, &santa_warehouse_mut);
+            pthread_cleanup_push(mutex_unlock_routine, &santa_warehouse_mut);
 
             idle_reindeers++;
             printf("Renifer: czeka %zu reniferów na Mikołaja, %zu\n", idle_reindeers, worker_id);
@@ -171,7 +171,7 @@ void *elf(void *id) {
 
     while (true) {
         lock (&santa_warehouse_mut) {
-            pthread_cleanup_push(mutex_cleanup_routine, &santa_warehouse_mut);
+            pthread_cleanup_push(mutex_unlock_routine, &santa_warehouse_mut);
 
             //wait until Santa Claus is done dealing with me
             while (last_spot < stuck_elves && stuck_elves_ids[last_spot] == worker_id) {
@@ -185,7 +185,7 @@ void *elf(void *id) {
         rand_sleep(2);
 
         lock (&santa_warehouse_mut) {
-            pthread_cleanup_push(mutex_cleanup_routine, &santa_warehouse_mut);
+            pthread_cleanup_push(mutex_unlock_routine, &santa_warehouse_mut);
 
             //try to find a spot in stuck_elves_ids
             bool first_try = true;
@@ -213,7 +213,7 @@ void *elf(void *id) {
     return NULL;
 }
 
-void mutex_cleanup_routine(void *arg) {
+void mutex_unlock_routine(void *arg) {
     pthread_mutex_t *mut = arg;
     pthread_mutex_unlock(mut);
 }
